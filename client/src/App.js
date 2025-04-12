@@ -221,8 +221,6 @@ function App() {
           <option value="Matchplay">Matchplay</option>
           <option value="Finals">Finals</option>
         </select>
-        <input
-          placeholder="Bonus Logic (optional)"
        <input
           placeholder="Bonus Logic (optional)"
           value={bonus}
