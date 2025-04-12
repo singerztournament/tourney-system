@@ -96,3 +96,25 @@ app.post('/scores', (req, res) => {
 app.get('/scores', (req, res) => {
   res.json(scores);
 });
+app.get('/standings', (req, res) => {
+  const bowlerTotals = {};
+
+  scores.forEach((scoreEntry) => {
+    const { bowlerId, scores: gameScores } = scoreEntry;
+    const total = gameScores.reduce((sum, s) => sum + Number(s), 0);
+    if (!bowlerTotals[bowlerId]) {
+      bowlerTotals[bowlerId] = 0;
+    }
+    bowlerTotals[bowlerId] += total;
+  });
+
+  const results = Object.entries(bowlerTotals).map(([bowlerId, total]) => ({
+    bowlerId: Number(bowlerId),
+    total,
+  }));
+
+  // Sort highest to lowest
+  results.sort((a, b) => b.total - a.total);
+
+  res.json(results);
+});
