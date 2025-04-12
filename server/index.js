@@ -73,3 +73,26 @@ app.post('/rounds', (req, res) => {
 app.get('/rounds', (req, res) => {
   res.json(rounds);
 });
+let scores = [];
+
+app.post('/scores', (req, res) => {
+  const { bowlerId, roundId, scores: gameScores } = req.body;
+
+  if (!bowlerId || !roundId || !Array.isArray(gameScores)) {
+    return res.status(400).json({ error: 'Missing required score data' });
+  }
+
+  const newScore = {
+    id: Date.now(),
+    bowlerId,
+    roundId,
+    scores: gameScores.map(Number), // ensure numbers
+  };
+
+  scores.push(newScore);
+  res.status(201).json(newScore);
+});
+
+app.get('/scores', (req, res) => {
+  res.json(scores);
+});
