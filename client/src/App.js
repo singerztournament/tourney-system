@@ -142,7 +142,7 @@ function App() {
     setSelectedBowlerId('');
     setSelectedRoundId('');
     setGameScores([]);
-    fetchStandings(); // Refresh standings after scores are added
+    fetchStandings();
   };
 
   const downloadPDF = () => {
@@ -163,25 +163,63 @@ function App() {
     <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
       <h1>Tournament System</h1>
 
-      {/* Existing code omitted for brevity: Add Bowler, Rounds, Scores... */}
+      {/* Bowler Form */}
+      <h2>Add Bowler</h2>
+      <form onSubmit={handleAddBowler} style={{ marginBottom: '2rem' }}>
+        <input
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <input
+          placeholder="Division"
+          value={division}
+          onChange={(e) => setDivision(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <button type="submit">Add Bowler</button>
+      </form>
 
-      {/* Standings */}
-      <h2 style={{ marginTop: '3rem' }}>Standings</h2>
-      <button onClick={downloadPDF} style={{ marginBottom: '1rem' }}>
-        Download Standings PDF
-      </button>
       <ul>
-        {standings.map((s, idx) => {
-          const bowler = bowlers.find((b) => b.id === s.bowlerId);
-          return (
-            <li key={s.bowlerId}>
-              {idx + 1}. {bowler?.name || 'Unknown'} — {s.total} pins
-            </li>
-          );
-        })}
+        {bowlers.map((b) => (
+          <li key={b.id} style={{ marginBottom: '0.5rem' }}>
+            {editingId === b.id ? (
+              <>
+                <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                <input value={editDivision} onChange={(e) => setEditDivision(e.target.value)} />
+                <button onClick={() => handleSaveEdit(b.id)}>Save</button>
+                <button onClick={() => setEditingId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                {b.name} — {b.division}
+                <button onClick={() => handleEdit(b)} style={{ marginLeft: '1rem' }}>Edit</button>
+                <button onClick={() => handleDelete(b.id)} style={{ marginLeft: '0.5rem' }}>Delete</button>
+              </>
+            )}
+          </li>
+        ))}
       </ul>
-    </div>
-  );
-}
 
-export default App;
+      {/* Round Form */}
+      <h2 style={{ marginTop: '3rem' }}>Create Round</h2>
+      <form onSubmit={handleAddRound}>
+        <input
+          placeholder="Round Name"
+          value={roundName}
+          onChange={(e) => setRoundName(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <select value={games} onChange={(e) => setGames(e.target.value)} style={{ marginRight: '1rem' }}>
+          {[3, 4, 5, 6, 7, 8].map((g) => (
+            <option key={g} value={g}>{g} Games</option>
+          ))}
+        </select>
+        <select value={roundType} onChange={(e) => setRoundType(e.target.value)} style={{ marginRight: '1rem' }}>
+          <option value="Qualifying">Qualifying</option>
+          <option value="Matchplay">Matchplay</option>
+          <option value="Finals">Finals</option>
+        </select>
+        <input
+          placeholder="Bonus Logic (optional)"
