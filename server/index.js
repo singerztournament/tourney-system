@@ -31,3 +31,23 @@ app.post('/bowlers', (req, res) => {
 app.get('/bowlers', (req, res) => {
   res.json(bowlers);
 });
+// DELETE a bowler by ID
+app.delete('/bowlers/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  bowlers = bowlers.filter((b) => b.id !== id);
+  res.status(204).end();
+});
+
+// UPDATE a bowler by ID
+app.put('/bowlers/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { name, division } = req.body;
+  const index = bowlers.findIndex((b) => b.id === id);
+
+  if (index === -1) return res.status(404).json({ error: 'Bowler not found' });
+
+  if (name) bowlers[index].name = name;
+  if (division) bowlers[index].division = division;
+
+  res.json(bowlers[index]);
+});
