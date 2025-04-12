@@ -51,3 +51,25 @@ app.put('/bowlers/:id', (req, res) => {
 
   res.json(bowlers[index]);
 });
+let rounds = [];
+
+app.post('/rounds', (req, res) => {
+  const { name, games, type, bonus } = req.body;
+  if (!name || !games || !type) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const newRound = {
+    id: Date.now(),
+    name,
+    games,
+    type,
+    bonus: bonus || null,
+  };
+  rounds.push(newRound);
+  res.status(201).json(newRound);
+});
+
+app.get('/rounds', (req, res) => {
+  res.json(rounds);
+});
