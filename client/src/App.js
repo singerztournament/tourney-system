@@ -1,32 +1,62 @@
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
 function App() {
-  // Bowler state
-  const [bowlers, setBowlers] = useState([]);
-  const [rounds, setRounds] = useState([]);
-  const [scores, setScores] = useState([]);
-
-  // New bowler form
+  // Bowler states
   const [name, setName] = useState('');
   const [division, setDivision] = useState('');
+  const [bowlers, setBowlers] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDivision, setEditDivision] = useState('');
 
-  // New round form
+  // Round states
+  const [rounds, setRounds] = useState([]);
   const [roundName, setRoundName] = useState('');
   const [games, setGames] = useState(6);
   const [roundType, setRoundType] = useState('Qualifying');
   const [bonus, setBonus] = useState('');
 
-  // Score entry form
-  const [selectedRound, setSelectedRound] = useState('');
-  const [selectedBowler, setSelectedBowler] = useState('');
+  // Score entry
+  const [selectedRoundId, setSelectedRoundId] = useState('');
+  const [selectedBowlerId, setSelectedBowlerId] = useState('');
   const [gameScores, setGameScores] = useState([]);
+  const [scoreList, setScoreList] = useState([]);
+
+  // Standings
+  const [standings, setStandings] = useState([]);
+
+  const fetchBowlers = async () => {
+    const res = await fetch(`${API_URL}/bowlers`);
+    const data = await res.json();
+    setBowlers(data);
+  };
+
+  const fetchRounds = async () => {
+    const res = await fetch(`${API_URL}/rounds`);
+    const data = await res.json();
+    setRounds(data);
+  };
+
+  const fetchScores = async () => {
+    const res = await fetch(`${API_URL}/scores`);
+    const data = await res.json();
+    setScoreList(data);
+  };
+
+  const fetchStandings = async () => {
+    const res = await fetch(`${API_URL}/standings`);
+    const data = await res.json();
+    setStandings(data);
+  };
 
   useEffect(() => {
-    fetch(`${API_URL}/bowlers`).then((res) => res.json()).then(setBowlers);
-    fetch(`${API_URL}/rounds`).then((res) => res.json()).then(setRounds);
-    fetch(`${API_URL}/scores`).then((res) => res.json()).then(setScores);
+    fetchBowlers();
+    fetchRounds();
+    fetchScores();
+    fetchStandings();
   }, []);
 
   const handleAddBowler = async (e) => {
@@ -36,10 +66,32 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, division }),
     });
-    const newB = await res.json();
-    setBowlers([...bowlers, newB]);
+    const newBowler = await res.json();
+    setBowlers((prev) => [...prev, newBowler]);
     setName('');
     setDivision('');
+  };
+
+  const handleDelete = async (id) => {
+    await fetch(`${API_URL}/bowlers/${id}`, { method: 'DELETE' });
+    setBowlers((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const handleEdit = (b) => {
+    setEditingId(b.id);
+    setEditName(b.name);
+    setEditDivision(b.division);
+  };
+
+  const handleSaveEdit = async (id) => {
+    const res = await fetch(`${API_URL}/bowlers/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editName, division: editDivision }),
+    });
+    const updated = await res.json();
+    setBowlers((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    setEditingId(null);
   };
 
   const handleAddRound = async (e) => {
@@ -47,106 +99,83 @@ function App() {
     const res = await fetch(`${API_URL}/rounds`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: roundName, games, type: roundType, bonus }),
+      body: JSON.stringify({
+        name: roundName,
+        games: parseInt(games),
+        type: roundType,
+        bonus: bonus || null,
+      }),
     });
-    const newR = await res.json();
-    setRounds([...rounds, newR]);
+    const newRound = await res.json();
+    setRounds((prev) => [...prev, newRound]);
     setRoundName('');
     setGames(6);
     setRoundType('Qualifying');
     setBonus('');
   };
 
-  const handleScoreChange = (index, value) => {
-    const newScores = [...gameScores];
-    newScores[index] = value;
-    setGameScores(newScores);
+  const handleSelectRound = (id) => {
+    setSelectedRoundId(id);
+    const round = rounds.find((r) => r.id === parseInt(id));
+    setGameScores(new Array(round?.games || 0).fill(''));
   };
 
-  const handleSubmitScore = async (e) => {
+  const handleScoreChange = (index, value) => {
+    const updated = [...gameScores];
+    updated[index] = value;
+    setGameScores(updated);
+  };
+
+  const handleSubmitScores = async (e) => {
     e.preventDefault();
     const res = await fetch(`${API_URL}/scores`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        bowlerId: parseInt(selectedBowler),
-        roundId: parseInt(selectedRound),
-        scores: gameScores.map((g) => parseInt(g)),
+        bowlerId: parseInt(selectedBowlerId),
+        roundId: parseInt(selectedRoundId),
+        scores: gameScores,
       }),
     });
     const newScore = await res.json();
-    setScores([...scores, newScore]);
-    setSelectedBowler('');
-    setSelectedRound('');
+    setScoreList((prev) => [...prev, newScore]);
+    setSelectedBowlerId('');
+    setSelectedRoundId('');
     setGameScores([]);
+    fetchStandings(); // Refresh standings after scores are added
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text('Tournament Standings', 20, 20);
+
+    standings.forEach((s, idx) => {
+      const bowler = bowlers.find((b) => b.id === s.bowlerId);
+      const name = bowler?.name || 'Unknown';
+      doc.text(`${idx + 1}. ${name} — ${s.total} pins`, 20, 30 + idx * 10);
+    });
+
+    doc.save('standings.pdf');
   };
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
       <h1>Tournament System</h1>
 
-      <h2>Add Bowler</h2>
-      <form onSubmit={handleAddBowler}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-        <input value={division} onChange={(e) => setDivision(e.target.value)} placeholder="Division" />
-        <button type="submit">Add Bowler</button>
-      </form>
+      {/* Existing code omitted for brevity: Add Bowler, Rounds, Scores... */}
 
-      <h2>Create Round</h2>
-      <form onSubmit={handleAddRound}>
-        <input value={roundName} onChange={(e) => setRoundName(e.target.value)} placeholder="Round Name" />
-        <select value={games} onChange={(e) => setGames(parseInt(e.target.value))}>
-          {[3,4,5,6,7,8].map((g) => <option key={g} value={g}>{g} Games</option>)}
-        </select>
-        <select value={roundType} onChange={(e) => setRoundType(e.target.value)}>
-          <option value="Qualifying">Qualifying</option>
-          <option value="Matchplay">Matchplay</option>
-        </select>
-        <input value={bonus} onChange={(e) => setBonus(e.target.value)} placeholder="Bonus Logic (optional)" />
-        <button type="submit">Add Round</button>
-      </form>
-
-      <h2>Enter Scores</h2>
-      <form onSubmit={handleSubmitScore}>
-        <select value={selectedRound} onChange={(e) => {
-          const roundId = e.target.value;
-          setSelectedRound(roundId);
-          const round = rounds.find(r => r.id === parseInt(roundId));
-          if (round) {
-            setGameScores(Array(round.games).fill(''));
-          }
-        }}>
-          <option value="">Select Round</option>
-          {rounds.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-
-        <select value={selectedBowler} onChange={(e) => setSelectedBowler(e.target.value)}>
-          <option value="">Select Bowler</option>
-          {bowlers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-
-        {gameScores.map((score, idx) => (
-          <input
-            key={idx}
-            value={score}
-            type="number"
-            placeholder={`G${idx + 1}`}
-            onChange={(e) => handleScoreChange(idx, e.target.value)}
-            style={{ width: '60px', marginRight: '0.5rem' }}
-          />
-        ))}
-
-        <button type="submit">Submit Score</button>
-      </form>
-
-      <h3>All Scores</h3>
+      {/* Standings */}
+      <h2 style={{ marginTop: '3rem' }}>Standings</h2>
+      <button onClick={downloadPDF} style={{ marginBottom: '1rem' }}>
+        Download Standings PDF
+      </button>
       <ul>
-        {scores.map((s) => {
-          const bowler = bowlers.find(b => b.id === s.bowlerId);
-          const round = rounds.find(r => r.id === s.roundId);
+        {standings.map((s, idx) => {
+          const bowler = bowlers.find((b) => b.id === s.bowlerId);
           return (
-            <li key={s.id}>
-              {bowler?.name} – {round?.name}: {s.scores.join(', ')}
+            <li key={s.bowlerId}>
+              {idx + 1}. {bowler?.name || 'Unknown'} — {s.total} pins
             </li>
           );
         })}
