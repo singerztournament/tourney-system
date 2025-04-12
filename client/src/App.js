@@ -3,62 +3,60 @@ import React, { useState, useEffect } from 'react';
 const API_URL = process.env.REACT_APP_API_URL;
 
 function App() {
+  // Bowler states
   const [name, setName] = useState('');
   const [division, setDivision] = useState('');
   const [bowlers, setBowlers] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDivision, setEditDivision] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  // Round states
+  const [rounds, setRounds] = useState([]);
+  const [roundName, setRoundName] = useState('');
+  const [games, setGames] = useState(6);
+  const [roundType, setRoundType] = useState('Qualifying');
+  const [bonus, setBonus] = useState('');
 
   const fetchBowlers = async () => {
-    try {
-      const res = await fetch(`${API_URL}/bowlers`);
-      const data = await res.json();
-      setBowlers(data);
-    } catch {
-      setError('Failed to load bowlers');
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`${API_URL}/bowlers`);
+    const data = await res.json();
+    setBowlers(data);
+  };
+
+  const fetchRounds = async () => {
+    const res = await fetch(`${API_URL}/rounds`);
+    const data = await res.json();
+    setRounds(data);
   };
 
   useEffect(() => {
     fetchBowlers();
+    fetchRounds();
   }, []);
 
-  const handleSubmit = async (e) => {
+  const handleAddBowler = async (e) => {
     e.preventDefault();
-    if (!name || !division) return;
-
     const res = await fetch(`${API_URL}/bowlers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, division }),
     });
-
-    if (res.ok) {
-      const newBowler = await res.json();
-      setBowlers((prev) => [...prev, newBowler]);
-      setName('');
-      setDivision('');
-    } else {
-      setError('Error adding bowler');
-    }
+    const newBowler = await res.json();
+    setBowlers((prev) => [...prev, newBowler]);
+    setName('');
+    setDivision('');
   };
 
   const handleDelete = async (id) => {
-    await fetch(`${API_URL}/bowlers/${id}`, {
-      method: 'DELETE',
-    });
+    await fetch(`${API_URL}/bowlers/${id}`, { method: 'DELETE' });
     setBowlers((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const handleEdit = (bowler) => {
-    setEditingId(bowler.id);
-    setEditName(bowler.name);
-    setEditDivision(bowler.division);
+  const handleEdit = (b) => {
+    setEditingId(b.id);
+    setEditName(b.name);
+    setEditDivision(b.division);
   };
 
   const handleSaveEdit = async (id) => {
@@ -67,21 +65,38 @@ function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: editName, division: editDivision }),
     });
+    const updated = await res.json();
+    setBowlers((prev) => prev.map((b) => (b.id === id ? updated : b)));
+    setEditingId(null);
+  };
 
-    if (res.ok) {
-      const updated = await res.json();
-      setBowlers((prev) =>
-        prev.map((b) => (b.id === id ? updated : b))
-      );
-      setEditingId(null);
-    }
+  const handleAddRound = async (e) => {
+    e.preventDefault();
+    const res = await fetch(`${API_URL}/rounds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: roundName,
+        games: parseInt(games),
+        type: roundType,
+        bonus: bonus || null,
+      }),
+    });
+    const newRound = await res.json();
+    setRounds((prev) => [...prev, newRound]);
+    setRoundName('');
+    setGames(6);
+    setRoundType('Qualifying');
+    setBonus('');
   };
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
       <h1>Tournament System</h1>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: '2rem' }}>
+      {/* Bowler Form */}
+      <h2>Add Bowler</h2>
+      <form onSubmit={handleAddBowler} style={{ marginBottom: '2rem' }}>
         <input
           placeholder="Name"
           value={name}
@@ -97,50 +112,73 @@ function App() {
         <button type="submit">Add Bowler</button>
       </form>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <ul>
+        {bowlers.map((b) => (
+          <li key={b.id} style={{ marginBottom: '0.5rem' }}>
+            {editingId === b.id ? (
+              <>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+                <input
+                  value={editDivision}
+                  onChange={(e) => setEditDivision(e.target.value)}
+                />
+                <button onClick={() => handleSaveEdit(b.id)}>Save</button>
+                <button onClick={() => setEditingId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                {b.name} — {b.division}
+                <button onClick={() => handleEdit(b)} style={{ marginLeft: '1rem' }}>
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(b.id)} style={{ marginLeft: '0.5rem' }}>
+                  Delete
+                </button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
 
-      {loading ? (
-        <p>Loading bowlers...</p>
-      ) : (
-        <ul>
-          {bowlers.map((b) => (
-            <li key={b.id} style={{ marginBottom: '0.5rem' }}>
-              {editingId === b.id ? (
-                <>
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    style={{ marginRight: '0.5rem' }}
-                  />
-                  <input
-                    value={editDivision}
-                    onChange={(e) => setEditDivision(e.target.value)}
-                    style={{ marginRight: '0.5rem' }}
-                  />
-                  <button onClick={() => handleSaveEdit(b.id)}>Save</button>
-                  <button onClick={() => setEditingId(null)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  {b.name} — {b.division}
-                  <button
-                    style={{ marginLeft: '1rem' }}
-                    onClick={() => handleEdit(b)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    style={{ marginLeft: '0.5rem' }}
-                    onClick={() => handleDelete(b.id)}
-                  >
-                    Delete
-                  </button>
-                </>
-              )}
-            </li>
+      {/* Round Form */}
+      <h2 style={{ marginTop: '3rem' }}>Create Round</h2>
+      <form onSubmit={handleAddRound}>
+        <input
+          placeholder="Round Name"
+          value={roundName}
+          onChange={(e) => setRoundName(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <select value={games} onChange={(e) => setGames(e.target.value)} style={{ marginRight: '1rem' }}>
+          {[3, 4, 5, 6, 7, 8].map((g) => (
+            <option key={g} value={g}>{g} Games</option>
           ))}
-        </ul>
-      )}
+        </select>
+        <select value={roundType} onChange={(e) => setRoundType(e.target.value)} style={{ marginRight: '1rem' }}>
+          <option value="Qualifying">Qualifying</option>
+          <option value="Matchplay">Matchplay</option>
+          <option value="Finals">Finals</option>
+        </select>
+        <input
+          placeholder="Bonus Logic (optional)"
+          value={bonus}
+          onChange={(e) => setBonus(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <button type="submit">Add Round</button>
+      </form>
+
+      <ul style={{ marginTop: '1rem' }}>
+        {rounds.map((r) => (
+          <li key={r.id}>
+            {r.name} — {r.games} games — {r.type}
+            {r.bonus && <> (Bonus: {r.bonus})</>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
