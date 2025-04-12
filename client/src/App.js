@@ -223,3 +223,83 @@ function App() {
         </select>
         <input
           placeholder="Bonus Logic (optional)"
+       <input
+          placeholder="Bonus Logic (optional)"
+          value={bonus}
+          onChange={(e) => setBonus(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        />
+        <button type="submit">Add Round</button>
+      </form>
+
+      <ul style={{ marginTop: '1rem' }}>
+        {rounds.map((r) => (
+          <li key={r.id}>
+            {r.name} — {r.games} games — {r.type}
+            {r.bonus && <> (Bonus: {r.bonus})</>}
+          </li>
+        ))}
+      </ul>
+
+      {/* Score Entry */}
+      <h2 style={{ marginTop: '3rem' }}>Enter Scores</h2>
+      <form onSubmit={handleSubmitScores}>
+        <select value={selectedRoundId} onChange={(e) => handleSelectRound(e.target.value)} style={{ marginRight: '1rem' }}>
+          <option value="">Select Round</option>
+          {rounds.map((r) => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+        <select value={selectedBowlerId} onChange={(e) => setSelectedBowlerId(e.target.value)} style={{ marginRight: '1rem' }}>
+          <option value="">Select Bowler</option>
+          {bowlers.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
+
+        {gameScores.map((score, idx) => (
+          <input
+            key={idx}
+            placeholder={`G${idx + 1}`}
+            value={score}
+            onChange={(e) => handleScoreChange(idx, e.target.value)}
+            style={{ width: '60px', marginRight: '0.5rem' }}
+          />
+        ))}
+
+        <button type="submit" style={{ marginLeft: '1rem' }}>Submit Scores</button>
+      </form>
+
+      <h3 style={{ marginTop: '2rem' }}>Submitted Scores</h3>
+      <ul>
+        {scoreList.map((s) => {
+          const bowler = bowlers.find((b) => b.id === s.bowlerId);
+          const round = rounds.find((r) => r.id === s.roundId);
+          return (
+            <li key={s.id}>
+              {bowler?.name || 'Unknown'} – {round?.name || 'Unknown'}: {s.scores.join(', ')}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Standings */}
+      <h2 style={{ marginTop: '3rem' }}>Standings</h2>
+      <button onClick={downloadPDF} style={{ marginBottom: '1rem' }}>
+        Download Standings PDF
+      </button>
+      <ul>
+        {standings.map((s, idx) => {
+          const bowler = bowlers.find((b) => b.id === s.bowlerId);
+          return (
+            <li key={s.bowlerId}>
+              {idx + 1}. {bowler?.name || 'Unknown'} — {s.total} pins
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export default App;
